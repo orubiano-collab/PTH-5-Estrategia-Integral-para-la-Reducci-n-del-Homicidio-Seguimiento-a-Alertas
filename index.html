@@ -40,7 +40,7 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--ink);font-size:1
 .sec-header{margin:0 0 18px}
 .sec-num{font-size:.68em;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--gold2);margin-bottom:3px}
 .sec-title{font-family:var(--font-d);font-size:1.3em;font-weight:800;color:var(--navy);padding-bottom:7px;border-bottom:2px solid var(--gold);margin-bottom:6px}
-.sec-lead{font-size:.84em;color:var(--ink2);max-width:720px;line-height:1.7}
+/* sec-lead eliminado */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:24px;box-shadow:var(--sh2)}
 .ct{font-size:.7em;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;padding:4px 10px;border-radius:6px;display:inline-block}
 .ct-r{background:var(--acc-bg);color:var(--accent)}
@@ -108,7 +108,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 <div class="topbar">
   <div class="tb-name">
     Sistema de Seguimiento · Estrategia Integral para la Reducción del Homicidio
-    <span>Captura de datos territorial y operativa</span>
+    <span>Captura de datos territorial y operativa · Barranquilla</span>
   </div>
   <div class="tb-badge">Formulario 5 de 8</div>
 </div>
@@ -128,7 +128,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
   <div class="sec-header">
     <div class="sec-num">Uso: analistas del Centro de Análisis · coordinadores territoriales</div>
     <div class="sec-title">Gestión de Alertas Tempranas</div>
-    <div class="sec-lead">Todos los campos marcados con <span style="color:var(--accent)">*</span> son obligatorios. Alimenta la tabla <b>FACT_ALERTAS</b>.</div>
+    <!-- Mensaje eliminado: ya no aparece "Todos los campos..." -->
   </div>
 
   <div class="kri-grid">
@@ -169,15 +169,23 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
           <input type="date" required>
           <span class="error-msg">Este campo es obligatorio.</span>
         </div>
-        <div class="field" id="f-terr">
-          <label>Territorio afectado<span class="req">*</span></label>
-          <select required>
-            <option value="">Seleccione territorio...</option>
-            <option>Comuna 1 · UPZ Norte · Barrio A</option>
-            <option>Comuna 2 · UPZ Centro · Barrio B</option>
-            <option>Comuna 3 · UPZ Sur · Barrio C</option>
+
+        <!-- Localidad -->
+        <div class="field" id="f-localidad">
+          <label>Localidad<span class="req">*</span></label>
+          <select id="localidadSelect" required>
+            <option value="">Seleccione localidad...</option>
           </select>
-          <span class="error-msg">Este campo es obligatorio.</span>
+          <span class="error-msg">Debe seleccionar una localidad.</span>
+        </div>
+
+        <!-- Territorio (barrio/corregimiento/vereda/zona) -->
+        <div class="field" id="f-territorio">
+          <label>Territorio (barrio, corregimiento, vereda, zona)<span class="req">*</span></label>
+          <select id="territorioSelect" required>
+            <option value="">Primero seleccione una localidad</option>
+          </select>
+          <span class="error-msg">Debe seleccionar un territorio.</span>
         </div>
 
         <div class="field full" id="f-nivel">
@@ -268,6 +276,107 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 </div>
 
 <script>
+// ------------------------------------------------------------
+// DATOS TERRITORIALES OFICIALES DE BARRANQUILLA
+// Fuente: Alcaldía Distrital de Barranquilla (27/07/2024)
+// ------------------------------------------------------------
+const territoriosPorLocalidad = {
+  "Suroccidente": [
+    "Alfonso López", "Bernardo Hoyos", "Buena Esperanza", "California",
+    "Caribe Verde", "Carlos Meisel", "Ciudad Modesto", "Ciudadela de la Salud",
+    "Ciudadela de Paz", "Colina Campestre", "Cordialidad", "Corregimiento de Juan Mina",
+    "Cuchilla de Villate", "El Bosque", "El Carmén", "El Eden",
+    "El Pueblo", "El Romance", "El Rubí", "El Silencio",
+    "El Valle", "Evaristo Sourdis", "Gerlein y Villate", "Kalamary",
+    "La Ceiba", "La Esmeralda", "La Florida", "La Gloria",
+    "La Libertad", "La Manga", "La Paz", "La Pradera",
+    "Las Colinas", "Las Estrellas", "Las Malvinas", "Las Terrazas",
+    "Lipaya", "Loma Fresca", "Los Andes", "Los Angeles I",
+    "Los Angeles II", "Los Angeles III", "Los Olivos I", "Los Olivos II",
+    "Los Pinos", "Los Rosales", "Lucero", "Me Quejo",
+    "Mercedes Sur", "Nueva Colombia", "Nueva Granada", "Olaya",
+    "Pinar del Rio", "Por Fin", "Pumarejo", "San Felipe",
+    "San Isidro", "San Pedro Alejandrino", "San Pedro Sector I", "Santo Domigo",
+    "Siete de Agosto", "Villa del Rosario", "Villa Flor", "Villas de la Cordialidad",
+    "Villas de San Pablo"
+  ],
+  "Metropolitana": [
+    "Buenos Aires", "Carrizal", "Cevillar", "Ciudadela 20 de Julio",
+    "El Santuario", "Kennedy", "La Sierra", "La Sierrita",
+    "Las Americas", "Las Cayenas", "Las Gardenias", "Las Granjas",
+    "Los Continentes", "Los Girasoles", "San Luis", "Santa María",
+    "Santo Domingo de Guzman", "Sevilla Real", "Siete de Abril", "Sinaí",
+    "Veinte de Julio", "Villa San Carlos", "Villa San Pedro", "Villa Sevilla",
+    "Villa Valery"
+  ],
+  "Suroriente": [
+    "Atlántico", "Bellarena", "Boyaca", "Chiquinquira",
+    "El Campito", "El Limón", "El Milagro", "El Parque Sector Barranquilla",
+    "José Antonio Galán", "La Arboraya", "La Chinita", "La Luz",
+    "La Magdalena", "La Unión", "La Victoria", "Las Dunas",
+    "Las Nieves", "Las Palmas", "Las Palmeras", "Los Laureles",
+    "Los Trupillos", "Moderno", "Montes", "Pasadena",
+    "Primero de Mayo El Ferry", "Rebolo", "San Jose", "San Nicolás",
+    "San Roque", "Santa Helena", "Simón Bolívar", "Tayrona",
+    "Universal I", "Universal II", "Villa Blanca", "Villa del Carmén"
+  ],
+  "Norte-Centro Histórico": [
+    "Abajo", "Alameda del Rio", "Altos del Prado", "America",
+    "Barlovento", "Bellavista", "Bethania", "Bostón",
+    "Campo Alegre", "Centro", "Ciudad Jardín", "Colombia",
+    "El Castillo", "El Golf", "El Porvenir", "El Prado",
+    "El Recreo", "El Rosario", "El Tabor", "Granadillo",
+    "La Campiña", "La Concepción", "La Cumbre", "La Loma",
+    "Las Delicias", "Las Mercedes", "Las Nubes (vereda)", "Los Alpes",
+    "Los Jobos", "Los Nogales", "Miramar", "Modelo",
+    "Montecristo", "Nuevo Horizonte", "Paraiso", "San Francisco",
+    "Santa Ana", "Villa Country", "Villanueva", "Zona Franca",
+    "Zona Industrial"
+  ],
+  "Riomar": [
+    "Altamira", "Altos de Riomar", "Altos del Limón", "Andalucia",
+    "Corregimiento Eduardo Santos La Playa", "El Limoncito", "El Poblado",
+    "La Floresta", "Las Flores", "Las Tres Ave Maria", "Riomar",
+    "San Salvador", "San Vicente", "Santa Mónica", "Siape",
+    "Solaire Norte", "Villa Campestre", "Villa Carolina", "Villa del Este",
+    "Villa Santos"
+  ]
+};
+
+// ------------------------------------------------------------
+// POBLAR SELECT DE LOCALIDADES
+// ------------------------------------------------------------
+const localidadSelect = document.getElementById('localidadSelect');
+const territorioSelect = document.getElementById('territorioSelect');
+
+// Llenar localidades
+Object.keys(territoriosPorLocalidad).forEach(loc => {
+  const opt = document.createElement('option');
+  opt.value = loc;
+  opt.textContent = loc;
+  localidadSelect.appendChild(opt);
+});
+
+// Evento cambio de localidad
+localidadSelect.addEventListener('change', function() {
+  const localidad = this.value;
+  territorioSelect.innerHTML = '<option value="">Primero seleccione una localidad</option>';
+  if (localidad && territoriosPorLocalidad[localidad]) {
+    const lista = territoriosPorLocalidad[localidad];
+    lista.forEach(nombre => {
+      const opt = document.createElement('option');
+      opt.value = nombre;
+      opt.textContent = nombre;
+      territorioSelect.appendChild(opt);
+    });
+  }
+  this.closest('.field').classList.remove('err');
+  territorioSelect.closest('.field').classList.remove('err');
+});
+
+// ------------------------------------------------------------
+// NIVEL DE ALERTA
+// ------------------------------------------------------------
 document.querySelectorAll('.level-row').forEach(row=>{
   row.addEventListener('click',e=>{
     const opt=e.target.closest('.level-opt');
@@ -279,15 +388,22 @@ document.querySelectorAll('.level-row').forEach(row=>{
   });
 });
 
+// ------------------------------------------------------------
+// ARCHIVOS
+// ------------------------------------------------------------
 document.querySelector('.file-drop input').addEventListener('change',function(){
   const list=[...this.files].map(f=>f.name).join(', ');
   document.getElementById('filelist').textContent=list?('Seleccionado: '+list):'';
 });
 
+// ------------------------------------------------------------
+// VALIDACIÓN Y ENVÍO
+// ------------------------------------------------------------
 const form=document.getElementById('frm');
 form.addEventListener('submit',function(e){
   e.preventDefault();
   let valid=true;
+
   form.querySelectorAll('[required]').forEach(inp=>{
     if(inp.type==='file') return;
     const field=inp.closest('.field');
@@ -295,15 +411,17 @@ form.addEventListener('submit',function(e){
       if([...inp.selectedOptions].length===0){field.classList.add('err');valid=false;} else {field.classList.remove('err');}
     } else if(!inp.value){field.classList.add('err');valid=false;} else {field.classList.remove('err');}
   });
+
   document.querySelectorAll('.level-row').forEach(row=>{
     const field=row.closest('.field');
     if(!row.dataset.value){field.classList.add('err');valid=false;} else {field.classList.remove('err');}
   });
+
   const acc=document.getElementById('f-acciones').querySelector('textarea').value;
   if(acc.length<50){document.getElementById('f-acciones').classList.add('err');valid=false;}
 
   if(!valid){
-    document.querySelector('.field.err').scrollIntoView({behavior:'smooth',block:'center'});
+    document.querySelector('.field.err')?.scrollIntoView({behavior:'smooth',block:'center'});
     return;
   }
   document.getElementById('ok').classList.add('show');
@@ -312,6 +430,9 @@ form.addEventListener('submit',function(e){
   form.style.pointerEvents='none';
 });
 
+// ------------------------------------------------------------
+// RESET
+// ------------------------------------------------------------
 document.getElementById('btn-reset').addEventListener('click',function(){
   document.querySelectorAll('.level-opt.sel').forEach(o=>o.classList.remove('sel'));
   document.querySelectorAll('.level-row').forEach(r=>delete r.dataset.value);
@@ -321,6 +442,9 @@ document.getElementById('btn-reset').addEventListener('click',function(){
   document.getElementById('cc-acc').textContent='0';
   form.style.opacity='1';
   form.style.pointerEvents='auto';
+  // Resetear selects
+  localidadSelect.value = '';
+  territorioSelect.innerHTML = '<option value="">Primero seleccione una localidad</option>';
 });
 </script>
 </body>
