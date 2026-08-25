@@ -147,12 +147,12 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 
         <div class="field" id="f-id">
           <label>ID de Alerta<span class="req">*</span></label>
-          <input type="text" placeholder="Autocompletado del sistema" required>
+          <input type="text" id="id_alerta" placeholder="Autocompletado del sistema" required>
           <span class="error-msg">Este campo es obligatorio.</span>
         </div>
         <div class="field" id="f-kri">
           <label>Indicador de riesgo activado (KRI)<span class="req">*</span></label>
-          <select required>
+          <select id="kri_activado" required>
             <option value="">Seleccione...</option>
             <option>KRI-01 · Incremento mensual homicidios</option>
             <option>KRI-02 · Nuevo hotspot emergente</option>
@@ -166,7 +166,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 
         <div class="field" id="f-fecha">
           <label>Fecha de atención<span class="req">*</span></label>
-          <input type="date" required>
+          <input type="date" id="fecha_atencion" required>
           <span class="error-msg">Este campo es obligatorio.</span>
         </div>
 
@@ -200,14 +200,14 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 
         <div class="field full" id="f-acciones">
           <label>Acciones tomadas<span class="req">*</span></label>
-          <textarea maxlength="1000" placeholder="Mínimo 50 caracteres" oninput="document.getElementById('cc-acc').textContent=this.value.length"></textarea>
+          <textarea id="acciones_tomadas" maxlength="1000" placeholder="Mínimo 50 caracteres" oninput="document.getElementById('cc-acc').textContent=this.value.length"></textarea>
           <span class="charcount"><span id="cc-acc">0</span>/1000 caracteres (mín. 50)</span>
           <span class="error-msg">Debe describir las acciones con al menos 50 caracteres.</span>
         </div>
 
         <div class="field full" id="f-actores">
           <label>Actores involucrados<span class="req">*</span></label>
-          <select multiple required style="min-height:110px">
+          <select id="actores_involucrados" multiple required style="min-height:110px">
             <option>Policía Nacional (MEBAR)</option>
             <option>Fiscalía General</option>
             <option>Ejército Nacional</option>
@@ -221,7 +221,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 
         <div class="field" id="f-resultado">
           <label>Resultado<span class="req">*</span></label>
-          <select required>
+          <select id="resultado" required>
             <option value="">Seleccione...</option>
             <option>Alerta desescalada</option>
             <option>Hecho prevenido</option>
@@ -232,7 +232,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
         </div>
         <div class="field" id="f-estado">
           <label>Estado actualizado<span class="req">*</span></label>
-          <select required>
+          <select id="estado" required>
             <option value="">Seleccione...</option>
             <option>ATENDIDA</option>
             <option>CERRADA</option>
@@ -251,7 +251,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 
         <div class="field full">
           <label>Observaciones</label>
-          <textarea maxlength="400" placeholder="Opcional"></textarea>
+          <textarea id="observaciones" maxlength="400" placeholder="Opcional"></textarea>
         </div>
       </div>
 
@@ -397,6 +397,74 @@ document.querySelector('.file-drop input').addEventListener('change',function(){
 });
 
 // ------------------------------------------------------------
+// CONEXIÓN A GOOGLE SHEETS
+// ------------------------------------------------------------
+const API_URL_HOM = "https://script.google.com/macros/s/AKfycbyrIuQUGIOGDSSylMLN4C8KsGWDWy7JxGomakNEjpWjAipw4mIhprShi6ZDsw3ZTJm6/exec";
+const TIPO_FORMULARIO = "Seguimiento a Alertas";
+
+function enviarAGoogleSheetsHom(datos) {
+  return new Promise((resolve, reject) => {
+    let iframe = document.getElementById('hom-hidden-iframe');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.name = 'hom-hidden-iframe';
+      iframe.id = 'hom-hidden-iframe';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    }
+    let hform = document.getElementById('hom-hidden-form');
+    if (hform) hform.remove();
+    hform = document.createElement('form');
+    hform.id = 'hom-hidden-form';
+    hform.method = 'POST';
+    hform.action = API_URL_HOM;
+    hform.target = 'hom-hidden-iframe';
+    hform.style.display = 'none';
+    datos.tipo_formulario = TIPO_FORMULARIO;
+    Object.keys(datos).forEach(key => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = datos[key] != null ? datos[key] : '';
+      hform.appendChild(input);
+    });
+    document.body.appendChild(hform);
+    let resuelto = false;
+    const onMessage = (event) => {
+      if (event.data && (event.data.status === 'ok' || event.data.status === 'error')) {
+        resuelto = true;
+        window.removeEventListener('message', onMessage);
+        if (event.data.status === 'ok') resolve(event.data);
+        else reject(event.data);
+      }
+    };
+    window.addEventListener('message', onMessage);
+    hform.submit();
+    setTimeout(() => {
+      if (!resuelto) { window.removeEventListener('message', onMessage); resolve({status:'ok', aviso:'timeout'}); }
+    }, 4000);
+  });
+}
+
+function recopilarDatosForm() {
+  const actores = Array.from(document.getElementById('actores_involucrados').selectedOptions).map(o => o.value).join(', ');
+  const nivel = document.querySelector('[data-scale="nivel"]').dataset.value || '';
+  return {
+    id_alerta: document.getElementById('id_alerta').value,
+    kri_activado: document.getElementById('kri_activado').value,
+    fecha_atencion: document.getElementById('fecha_atencion').value,
+    localidad: localidadSelect.value,
+    territorio: territorioSelect.value,
+    nivel_alerta: nivel,
+    acciones_tomadas: document.getElementById('acciones_tomadas').value,
+    actores_involucrados: actores,
+    resultado: document.getElementById('resultado').value,
+    estado: document.getElementById('estado').value,
+    observaciones: document.getElementById('observaciones').value
+  };
+}
+
+// ------------------------------------------------------------
 // VALIDACIÓN Y ENVÍO
 // ------------------------------------------------------------
 const form=document.getElementById('frm');
@@ -424,10 +492,28 @@ form.addEventListener('submit',function(e){
     document.querySelector('.field.err')?.scrollIntoView({behavior:'smooth',block:'center'});
     return;
   }
-  document.getElementById('ok').classList.add('show');
-  document.getElementById('ok').scrollIntoView({behavior:'smooth',block:'center'});
-  form.style.opacity='.45';
-  form.style.pointerEvents='none';
+
+  if (!API_URL_HOM || API_URL_HOM.indexOf('PEGAR_AQUI') !== -1) {
+    alert('⚠️ Falta configurar la URL del Apps Script (API_URL_HOM) en el código de este formulario.');
+    return;
+  }
+
+  const btnSubmit = form.querySelector('.btn-submit');
+  const textoOriginal = btnSubmit.textContent;
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = '⏳ Guardando...';
+
+  enviarAGoogleSheetsHom(recopilarDatosForm()).then(() => {
+    document.getElementById('ok').classList.add('show');
+    document.getElementById('ok').scrollIntoView({behavior:'smooth',block:'center'});
+    form.style.opacity='.45';
+    form.style.pointerEvents='none';
+  }).catch(() => {
+    alert('⚠️ Ocurrió un problema al guardar. Verifique su conexión e intente nuevamente.');
+  }).finally(() => {
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = textoOriginal;
+  });
 });
 
 // ------------------------------------------------------------
